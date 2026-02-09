@@ -173,9 +173,15 @@ def projective_transform(
     # transform
     Gij = poses[:, jj] * poses[:, ii].inv()
 
-    Gij.data[:, ii == jj] = torch.as_tensor(
-        [-0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], device="cuda"
-    )
+    mask = ii == jj
+    if mask.any():
+        idx = torch.nonzero(mask, as_tuple=False).flatten()
+        const = torch.tensor(
+            [-0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+            device=Gij.data.device,
+            dtype=Gij.data.dtype,
+        ).view(1, 1, 7)
+        Gij.data[:, idx, :] = const.expand(Gij.data.shape[0], idx.numel(), 7)
     X1, Ja = actp(Gij, X0, jacobian=jacobian)
 
     # project (pinhole)
